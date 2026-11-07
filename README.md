@@ -31,7 +31,7 @@ database, no uploads to a third-party video service.
 | 区域 | 作用 |
 | --- | --- |
 | 上传视频 | 选择本地视频；上传后自动开始切镜 |
-| 切点方式 | `严格硬切` / `包含转场` / `本地模型回退`，都可用免费本地模式 |
+| 切点方式 | 本地硬切 / 含转场 / 本地模型回退 / 火山 MediaKit（云端付费） |
 | 视频列表 | 所有已上传视频、镜头数、时长、分析状态 |
 | 重新切镜 | 用新的切点方式重跑当前视频，旧分析会清空 |
 | 逐镜分析 | 逐镜调用视觉模型，显示进度；没有配置模型时会明确提示 |
@@ -40,6 +40,28 @@ database, no uploads to a third-party video service.
 ![Mobile layout](docs/screenshots/mobile.png)
 
 *窄屏会自动变成单列，上传、视频列表和分镜仍然可用。*
+
+## 实际工作台案例
+
+### 主工作台：切点、技能、分组
+
+![Workbench overview](docs/screenshots/workbench-overview.png)
+
+这是实际分镜台界面：顶部选视觉模型和切点服务，左侧是项目与步骤，中间上传视频并选择“火山 MediaKit”，右侧是导演助手。截图里能看到“拉片技能”和七段流程，不是概念图。
+
+### 整段分析 + 分镜卡片
+
+![Whole-video analysis](docs/screenshots/whole-analysis.png)
+
+整段反推会把风格、节奏和镜头语言合在一起；下面逐镜显示时间码、硬切标记、选片/对错复核、深度图和反推提示词入口。
+
+> 这张截图里“整段整合分析”显示了“读取失败”。这是实际运行时的一次失败状态，我没有把它裁掉或说成成功；分镜列表和单镜结果仍然保留。README 不承诺每次云端调用都成功，失败会明确显示。
+
+### 单镜详情：人物、表演、运动、时间节点
+
+![Shot detail](docs/screenshots/shot-detail.png)
+
+单镜详情把 `character`、`action`、`expression`、`micro_expression`、`body_language`、`camera_motion`、`speed`、`rhythm` 和时间节点分开写，方便直接做拉片笔记或改写成生成提示词。
 
 ## 分析结果里有什么
 
