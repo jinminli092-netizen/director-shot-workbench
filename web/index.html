@@ -29,9 +29,10 @@
       <div class="row">
         <label class="muted">切点方式
           <select id="mode">
-            <option value="cuts">严格硬切（scdet，免费）</option>
-            <option value="all">包含转场 / 叠化（scdet）</option>
-            <option value="model">本地模型 / 自动回退（免费）</option>
+            <option value="local:cuts">本地硬切（scdet，免费）</option>
+            <option value="local:all">本地含转场 / 叠化（免费）</option>
+            <option value="local:model">本地模型 / 自动回退（免费）</option>
+            <option value="volcengine:cuts">火山 MediaKit（推荐，云切点，付费）</option>
           </select>
         </label>
         <span class="status" id="status">等待上传</span>

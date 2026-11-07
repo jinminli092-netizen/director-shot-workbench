@@ -97,16 +97,26 @@ async function select(id) {
   renderList();
 }
 
+function cutSelection() {
+  const [provider, mode] = String($("#mode").value || "local:cuts").split(":");
+  return { provider: provider || "local", mode: mode || "cuts" };
+}
+
 async function upload(file) {
   if (!file || state.busy) return;
   state.busy = true;
   const status = $("#status");
   status.className = "status";
   status.textContent = `上传 ${file.name}…`;
+  const selection = cutSelection();
   try {
     const data = await api("/api/media/upload", {
       method: "POST",
-      headers: { "Content-Type": file.type || "application/octet-stream", "X-Filename": encodeURIComponent(file.name) },
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "X-Filename": encodeURIComponent(file.name),
+        "X-Cut-Provider": selection.provider,
+      },
       body: file,
     });
     status.textContent = `已上传 ${file.name}，正在切镜…`;
@@ -121,7 +131,12 @@ async function upload(file) {
 
 async function recut(id) {
   try {
-    await api(`/api/media/${id}/cut`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: $("#mode").value }) });
+    const selection = cutSelection();
+    await api(`/api/media/${id}/cut`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(selection),
+    });
     await refresh(id);
   } catch (error) {
     alert(error.message);
@@ -140,7 +155,11 @@ async function analyze(id) {
 async function boot() {
   try {
     const health = await api("/api/health");
-    $("#model-status").textContent = health.model ? "视觉模型已配置" : "未配置视觉模型 · 仍可切镜";
+    const modelLabel = health.model ? `视觉：${health.model_name || health.model_provider || "已配置"}` : "未配置视觉模型";
+    const cutLabel = health.cut_providers?.volcengine ? "火山切点已配置" : "火山切点未配置";
+    $("#model-status").textContent = `${modelLabel} · ${cutLabel}`;
+    const cloudOption = document.querySelector('#mode option[value="volcengine:cuts"]');
+    if (cloudOption && !health.cut_providers?.volcengine) cloudOption.textContent = "火山 MediaKit（未配置 Key）";
   } catch {
     $("#model-status").textContent = "服务未连接";
   }

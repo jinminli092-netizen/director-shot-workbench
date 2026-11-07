@@ -1,4 +1,4 @@
-"""Seedance Cut — a local-only shot splitter and shot analyser.
+﻿"""Seedance Cut 鈥?a local-only shot splitter and shot analyser.
 
 One process, one data directory, no accounts. Upload a video, cut it into
 shots with ffmpeg scene detection, then analyse the shots with any
@@ -40,24 +40,51 @@ from seedance import batch, db, media, providers  # noqa: E402
 
 DATA_DIR = Path(os.environ["SEEDANCE_DATA_DIR"]).resolve()
 WEB_DIR = ROOT / "web"
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 MAX_UPLOAD = int(os.environ.get("SEEDANCE_MAX_UPLOAD_MB", "4096")) * 1024 * 1024
+
+MODEL_PRESETS = {
+    "doubao": {
+        "label": "璞嗗寘 / 鐏北鏂硅垷",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+    },
+    "deepseek": {
+        "label": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+    },
+    "kimi": {
+        "label": "Kimi / Moonshot",
+        "base_url": "https://api.moonshot.cn/v1",
+    },
+    "custom": {
+        "label": "鑷畾涔?OpenAI 鍏煎鎺ュ彛",
+        "base_url": "",
+    },
+}
 
 
 def provider() -> dict | None:
-    base_url = os.environ.get("SEEDANCE_MODEL_BASE_URL", "").strip()
+    selected = os.environ.get("SEEDANCE_MODEL_PROVIDER", "custom").strip().lower()
+    preset = MODEL_PRESETS.get(selected, MODEL_PRESETS["custom"])
+    base_url = (os.environ.get("SEEDANCE_MODEL_BASE_URL") or preset["base_url"]).strip()
     model = os.environ.get("SEEDANCE_MODEL", "").strip()
     key = os.environ.get("SEEDANCE_API_KEY", "").strip()
     if not (base_url and model and key):
         return None
     return {
-        "id": "env",
-        "name": os.environ.get("SEEDANCE_MODEL_NAME", "local-vision"),
+        "id": selected,
+        "name": os.environ.get("SEEDANCE_MODEL_NAME", preset["label"]),
+        "provider": selected,
         "base_url": base_url,
         "model": model,
         "api_key": key,
         "kind": "api",
     }
+
+
+def cut_provider() -> str:
+    value = os.environ.get("SEEDANCE_CUT_PROVIDER", "local").strip().lower()
+    return value if value in {"local", "volcengine"} else "local"
 
 
 def json_bytes(value) -> bytes:
@@ -68,14 +95,14 @@ def update_job(media_id: str, **kwargs) -> None:
     db.update_media_job(media_id, **kwargs)
 
 
-def cut_media(media_id: str, mode: str) -> None:
+def cut_media(media_id: str, mode: str, selected_cut: str = "local") -> None:
     item = db.get_media(media_id)
     if not item:
         return
     try:
         update_job(media_id, status="running", progress=10, error="")
         media_dir = DATA_DIR / "media" / media_id
-        info = media.pull_apart(item["path"], media_dir, mode=mode, provider="local")
+        info = media.pull_apart(item["path"], media_dir, mode=mode, provider=selected_cut)
         db.replace_media_shots(media_id, info["shots"], info.get("transitions") or [])
         db.set_media_fps(media_id, info.get("fps") or media.probe_fps(item["path"]))
         db.set_media_duration(media_id, info.get("duration") or 0)
@@ -90,7 +117,7 @@ def cut_media(media_id: str, mode: str) -> None:
 def analyse_media(media_id: str) -> None:
     selected = provider()
     if not selected:
-        update_job(media_id, status="failed", error="未配置视觉模型，请填写 .env。")
+        update_job(media_id, status="failed", error="鏈厤缃瑙夋ā鍨嬶紝璇峰～鍐?.env銆?)
         return
     try:
         update_job(media_id, status="running", progress=72, error="")
@@ -131,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _file(self, path: Path) -> None:
         if not path.is_file():
-            self._json(404, {"error": "not_found", "message": "文件不存在。"})
+            self._json(404, {"error": "not_found", "message": "鏂囦欢涓嶅瓨鍦ㄣ€?})
             return
         ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         body = path.read_bytes()
@@ -152,14 +179,25 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         if path == "/api/health":
-            return self._json(200, {"ok": True, "version": VERSION, "model": bool(provider())})
+            model = provider()
+            return self._json(200, {
+                "ok": True,
+                "version": VERSION,
+                "model": bool(model),
+                "model_provider": model.get("provider") if model else "",
+                "model_name": model.get("name") if model else "",
+                "cut_providers": {
+                    "local": True,
+                    "volcengine": bool(os.environ.get("SEEDANCE_VOLCENGINE_API_KEY", "").strip()),
+                },
+            })
         if path == "/api/media":
             return self._json(200, {"media": list_media_with_state()})
         match = re.fullmatch(r"/api/media/([A-Za-z0-9_]+)", path)
         if match:
             item = db.get_media(match.group(1))
             if not item:
-                return self._json(404, {"error": "not_found", "message": "视频不存在。"})
+                return self._json(404, {"error": "not_found", "message": "瑙嗛涓嶅瓨鍦ㄣ€?})
             return self._json(200, {"media": item})
         match = re.fullmatch(r"/media/([A-Za-z0-9_]+)/(.+)", path)
         if match:
@@ -167,14 +205,14 @@ class Handler(BaseHTTPRequestHandler):
             base = (DATA_DIR / "media" / media_id).resolve()
             target = (base / rel).resolve()
             if base not in target.parents:
-                return self._json(403, {"error": "forbidden", "message": "路径无效。"})
+                return self._json(403, {"error": "forbidden", "message": "璺緞鏃犳晥銆?})
             return self._file(target)
         if path in {"", "/"}:
             path = "/index.html"
         rel = path.lstrip("/")
         target = (WEB_DIR / rel).resolve()
         if WEB_DIR.resolve() not in target.parents:
-            return self._json(403, {"error": "forbidden", "message": "路径无效。"})
+            return self._json(403, {"error": "forbidden", "message": "璺緞鏃犳晥銆?})
         return self._file(target)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -190,34 +228,44 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     body = json.loads(self._body().decode("utf-8") or "{}")
                 except json.JSONDecodeError:
-                    return self._json(400, {"error": "bad_json", "message": "请求格式无效。"})
+                    return self._json(400, {"error": "bad_json", "message": "璇锋眰鏍煎紡鏃犳晥銆?})
             item = db.get_media(media_id)
             if not item:
-                return self._json(404, {"error": "not_found", "message": "视频不存在。"})
+                return self._json(404, {"error": "not_found", "message": "瑙嗛涓嶅瓨鍦ㄣ€?})
             if action == "cut":
                 mode = str(body.get("mode") or "cuts")
                 if mode not in {"cuts", "all", "model"}:
-                    return self._json(400, {"error": "bad_mode", "message": "切点模式必须是 cuts / all / model。"})
+                    return self._json(400, {"error": "bad_mode", "message": "鍒囩偣妯″紡蹇呴』鏄?cuts / all / model銆?})
+                selected_cut = str(body.get("provider") or cut_provider()).strip().lower()
+                if selected_cut not in {"local", "volcengine"}:
+                    return self._json(400, {"error": "bad_cut_provider", "message": "鍒囬暅鏈嶅姟蹇呴』鏄?local 鎴?volcengine銆?})
+                if selected_cut == "volcengine" and not os.environ.get("SEEDANCE_VOLCENGINE_API_KEY", "").strip():
+                    return self._json(409, {"error": "cut_key_required", "message": "鍏堝湪 .env 閰嶇疆 SEEDANCE_VOLCENGINE_API_KEY銆?})
                 update_job(media_id, status="running", progress=5, error="")
-                threading.Thread(target=cut_media, args=(media_id, mode), daemon=True).start()
-                return self._json(202, {"ok": True, "processing": True})
+                threading.Thread(target=cut_media, args=(media_id, mode, selected_cut), daemon=True).start()
+                return self._json(202, {"ok": True, "processing": True, "provider": selected_cut})
             if item.get("job") and item["job"].get("status") == "running":
-                return self._json(409, {"error": "already_running", "message": "这一条正在分析。"})
+                return self._json(409, {"error": "already_running", "message": "杩欎竴鏉℃鍦ㄥ垎鏋愩€?})
             if not provider():
-                return self._json(409, {"error": "model_required", "message": "先在 .env 里配置 SEEDANCE_MODEL_BASE_URL / SEEDANCE_MODEL / SEEDANCE_API_KEY。"})
+                return self._json(409, {"error": "model_required", "message": "鍏堝湪 .env 閲岄厤缃?SEEDANCE_MODEL_BASE_URL / SEEDANCE_MODEL / SEEDANCE_API_KEY銆?})
             threading.Thread(target=analyse_media, args=(media_id,), daemon=True).start()
             return self._json(202, {"ok": True, "processing": True})
-        return self._json(404, {"error": "not_found", "message": "接口不存在。"})
+        return self._json(404, {"error": "not_found", "message": "鎺ュ彛涓嶅瓨鍦ㄣ€?})
 
     def _upload(self) -> None:
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0:
-            return self._json(400, {"error": "empty", "message": "没有收到视频。"})
+            return self._json(400, {"error": "empty", "message": "娌℃湁鏀跺埌瑙嗛銆?})
         if length > MAX_UPLOAD:
-            return self._json(413, {"error": "too_large", "message": f"单个视频不能超过 {MAX_UPLOAD // 1024 // 1024} MB。"})
+            return self._json(413, {"error": "too_large", "message": f"鍗曚釜瑙嗛涓嶈兘瓒呰繃 {MAX_UPLOAD // 1024 // 1024} MB銆?})
         name = Path(unquote(self.headers.get("X-Filename") or "video.mp4")).name
         if Path(name).suffix.lower() not in {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}:
-            return self._json(400, {"error": "bad_type", "message": "只支持 mp4 / mov / mkv / webm / avi。"})
+            return self._json(400, {"error": "bad_type", "message": "鍙敮鎸?mp4 / mov / mkv / webm / avi銆?})
+        selected_cut = str(self.headers.get("X-Cut-Provider") or cut_provider()).strip().lower()
+        if selected_cut not in {"local", "volcengine"}:
+            return self._json(400, {"error": "bad_cut_provider", "message": "鍒囬暅鏈嶅姟蹇呴』鏄?local 鎴?volcengine銆?})
+        if selected_cut == "volcengine" and not os.environ.get("SEEDANCE_VOLCENGINE_API_KEY", "").strip():
+            return self._json(409, {"error": "cut_key_required", "message": "鍏堝湪 .env 閰嶇疆 SEEDANCE_VOLCENGINE_API_KEY銆?})
         upload_dir = DATA_DIR / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         dest = upload_dir / f"{time.time_ns()}-{name}"
@@ -231,16 +279,16 @@ class Handler(BaseHTTPRequestHandler):
                 remaining -= len(chunk)
         if remaining:
             dest.unlink(missing_ok=True)
-            return self._json(400, {"error": "short", "message": "上传中断。"})
+            return self._json(400, {"error": "short", "message": "涓婁紶涓柇銆?})
         try:
             duration = media.probe_duration(str(dest))
         except Exception:
             dest.unlink(missing_ok=True)
-            return self._json(400, {"error": "bad_video", "message": "无法读取这个视频，请换一个文件。"})
+            return self._json(400, {"error": "bad_video", "message": "鏃犳硶璇诲彇杩欎釜瑙嗛锛岃鎹竴涓枃浠躲€?})
         media_id = db.new_id("med")
         db.add_media(Path(name).stem, str(dest), "", "", duration, [], media_id=media_id)
         update_job(media_id, status="running", progress=5, error="")
-        threading.Thread(target=cut_media, args=(media_id, "cuts"), daemon=True).start()
+        threading.Thread(target=cut_media, args=(media_id, "cuts", selected_cut), daemon=True).start()
         return self._json(202, {"media": db.get_media(media_id), "items": list_media_with_state()})
 
 
@@ -253,10 +301,11 @@ def main() -> None:
     args = parser.parse_args()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     db.init_db()
-    print(f"Seedance Cut {VERSION} · http://{args.host}:{args.port}")
+    print(f"Seedance Cut {VERSION} 路 http://{args.host}:{args.port}")
     print(f"data: {DATA_DIR}")
     ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
     main()
+
