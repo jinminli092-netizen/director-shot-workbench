@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seedance Cut · 拉片</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <div>
+      <small>SEEDANCE CUT</small>
+      <h1>拉片</h1>
+    </div>
+    <div class="status" id="model-status">读取配置…</div>
+  </header>
+  <main>
+    <section class="card upload-card">
+      <div class="row">
+        <div>
+          <h2>上传视频</h2>
+          <p class="muted">视频只存在本机。切镜用 ffmpeg，分析用你配置的视觉模型。</p>
+        </div>
+        <label class="button primary">
+          选择视频
+          <input id="file" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska" hidden />
+        </label>
+      </div>
+      <div class="row">
+        <label class="muted">切点方式
+          <select id="mode">
+            <option value="cuts">严格硬切（scdet，免费）</option>
+            <option value="all">包含转场 / 叠化（scdet）</option>
+            <option value="model">本地模型 / 自动回退（免费）</option>
+          </select>
+        </label>
+        <span class="status" id="status">等待上传</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <aside class="card list-card">
+        <div class="row"><h2>视频</h2><button class="button ghost" id="refresh">刷新</button></div>
+        <div id="list" class="list"><p class="muted">还没有视频。</p></div>
+      </aside>
+      <section class="card detail-card" id="detail">
+        <p class="muted">选择左侧一条视频，查看分镜和分析。</p>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

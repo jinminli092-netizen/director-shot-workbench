@@ -1,0 +1,16 @@
+data/
+uploads/
+videos/
+media/
+*.db
+*.sqlite
+*.sqlite3
+.env
+__pycache__/
+*.py[cod]
+.venv/
+.venv-audio/
+.idea/
+.vscode/
+.DS_Store
+*.log
