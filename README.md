@@ -1,4 +1,4 @@
-# Seedance Cut
+# 导演分镜精准拉片工作台
 
 ![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11%2B-informational)
@@ -12,7 +12,7 @@ database, no uploads to a third-party video service.
 > 中文：把视频上传到本机，用 ffmpeg 切镜，再用你自己的视觉模型逐镜分析。
 > 没有账号、没有云端作品库，视频默认只留在这台电脑。
 
-![Seedance Cut overview](docs/screenshots/overview.png)
+![导演分镜精准拉片工作台](docs/screenshots/overview.png)
 
 *主界面：左边是视频列表，右边是当前视频的分镜、缩略图和逐镜分析结果。截图为演示视频，不是真实项目素材。*
 

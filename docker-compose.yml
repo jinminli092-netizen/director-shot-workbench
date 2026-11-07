@@ -1,5 +1,5 @@
 services:
-  seedance-cut:
+  director-shot-workbench:
     build: .
     ports:
       - "127.0.0.1:8765:8765"

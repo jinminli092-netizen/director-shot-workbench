@@ -1,4 +1,4 @@
-"""Seedance Cut — a local-only shot splitter and shot analyser.
+"""导演分镜精准拉片工作台 — a local shot splitter and shot analyser.
 
 One process, one data directory, no accounts. Upload a video, cut it into
 shots with ffmpeg scene detection, then analyse the shots with any
@@ -142,10 +142,10 @@ def list_media_with_state() -> list[dict]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "SeedanceCut/" + VERSION
+    server_version = "DirectorShotWorkbench/" + VERSION
 
     def log_message(self, fmt: str, *args) -> None:
-        print("[seedance-cut]", fmt % args)
+        print("[director-shot]", fmt % args)
 
     def _json(self, status: int, value) -> None:
         body = json_bytes(value)
@@ -295,13 +295,13 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     import argparse
 
-    parser = argparse.ArgumentParser(description="Seedance Cut local server")
+    parser = argparse.ArgumentParser(description="导演分镜精准拉片工作台 local server")
     parser.add_argument("--host", default=os.environ.get("SEEDANCE_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("SEEDANCE_PORT", "8765")))
     args = parser.parse_args()
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     db.init_db()
-    print(f"Seedance Cut {VERSION} · http://{args.host}:{args.port}")
+    print(f"导演分镜精准拉片工作台 {VERSION} · http://{args.host}:{args.port}")
     print(f"data: {DATA_DIR}")
     ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
 

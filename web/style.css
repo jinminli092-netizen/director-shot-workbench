@@ -48,6 +48,7 @@ select { margin-left: 8px; background: #0e100e; color: var(--text); border: 1px 
   .layout { grid-template-columns: 1fr; min-width: 0; }
   main, .card, .row, .detail-head, .detail-actions, .item, .shots, .shot { min-width: 0; max-width: 100%; }
   header { padding: 20px 16px 14px; align-items: flex-start; flex-wrap: wrap; }
+  h1 { font-size: 24px; line-height: 1.25; max-width: 100%; }
   header > div:last-child { max-width: 46vw; min-width: 0; text-align: right; }
   .status { overflow-wrap: anywhere; }
   main { padding: 0 16px 40px; overflow-x: clip; }

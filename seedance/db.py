@@ -1,4 +1,4 @@
-"""Local SQLite store for the standalone Seedance Cut app.
+"""Local SQLite store for the standalone Director Shot Workbench app.
 
 One row per project; the working document (analysis / shots / groups / prompts)
 lives in `doc_json` because the UI always saves the whole step. Script versions,
